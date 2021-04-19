@@ -608,6 +608,92 @@ func Test_BuildSelect(t *testing.T) {
 	}
 }
 
+func Test_BuildWhere(t *testing.T) {
+	type inStruct struct {
+		where map[string]interface{}
+	}
+	type outStruct struct {
+		cond string
+		vals []interface{}
+		err  error
+	}
+	var data = []struct {
+		in  inStruct
+		out outStruct
+	}{
+		{
+			in: inStruct{
+				where: map[string]interface{}{
+					"foo":      "bar",
+					"qq":       "tt",
+					"age in":   []interface{}{1, 3, 5, 7, 9},
+					"vx":       []interface{}{1, 3, 5},
+					"faith <>": "Muslim",
+					"_or": []map[string]interface{}{
+						{
+							"aa": 11,
+							"bb": "xswl",
+						},
+						{
+							"cc":    "234",
+							"dd in": []interface{}{7, 8},
+							"_or": []map[string]interface{}{
+								{
+									"neeest_ee <>": "dw42",
+									"neeest_ff in": []interface{}{34, 59},
+								},
+								{
+									"neeest_gg":        1259,
+									"neeest_hh not in": []interface{}{358, 1245},
+								},
+							},
+						},
+					},
+				},
+			},
+			out: outStruct{
+				cond: "(((aa=? AND bb=?) OR (((neeest_ff IN (?,?) AND neeest_ee!=?) OR (neeest_gg=? AND neeest_hh NOT IN (?,?))) AND cc=? AND dd IN (?,?))) AND foo=? AND qq=? AND age IN (?,?,?,?,?) AND vx IN (?,?,?) AND faith!=?)",
+				vals: []interface{}{11, "xswl", 34, 59, "dw42", 1259, 358, 1245, "234", 7, 8, "bar", "tt", 1, 3, 5, 7, 9, 1, 3, 5, "Muslim"},
+				err:  nil,
+			},
+		},
+		{
+			in: inStruct{
+				where: map[string]interface{}{
+					"name like": "%123",
+				},
+			},
+			out: outStruct{
+				cond: `(name LIKE ?)`,
+				vals: []interface{}{"%123"},
+				err:  nil,
+			},
+		},
+		{
+			in: inStruct{
+				where: map[string]interface{}{
+					"a.id <>": "0",
+					"b.id <>": "c.id",
+					"d.key":   "'operator'",
+				},
+			},
+			out: outStruct{
+				cond: "(d.key=? AND a.id!=? AND b.id!=?)",
+				// vals: []interface{}{"0", "c.id", "'operator'"},
+				vals: []interface{}{"'operator'", "0", "c.id"},
+				err:  nil,
+			},
+		},
+	}
+	ass := assert.New(t)
+	for _, tc := range data {
+		cond, vals, err := BuildWhere(tc.in.where)
+		ass.Equal(tc.out.err, err)
+		ass.Equal(tc.out.cond, cond)
+		ass.Equal(tc.out.vals, vals)
+	}
+}
+
 func BenchmarkBuildSelect_Sequelization(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _, err := BuildSelect("tb", map[string]interface{}{

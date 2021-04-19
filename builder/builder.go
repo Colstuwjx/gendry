@@ -221,6 +221,22 @@ func BuildInsertOnDuplicate(table string, data []map[string]interface{}, update 
 	return buildInsertOnDuplicate(table, data, update)
 }
 
+// BuildWhere builds an WHERE sub clause which could be used for NamedQuery.
+func BuildWhere(where map[string]interface{}) (string, []interface{}, error) {
+	conditions, err := getWhereConditions(where, defaultIgnoreKeys)
+	if nil != err {
+		return "", nil, err
+	}
+	whereString, whereVals := whereConnector("AND", conditions...)
+	return whereString, whereVals, nil
+}
+
+// BuildHaving builds an HAVING sub clause which could be used for NamedQuery.
+// It's same to BuildWhere for the implementation.
+func BuildHaving(having map[string]interface{}) (string, []interface{}, error) {
+	return BuildWhere(having)
+}
+
 func isStringInSlice(str string, arr []string) bool {
 	for _, s := range arr {
 		if s == str {
